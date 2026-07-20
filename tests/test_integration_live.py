@@ -14,10 +14,10 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
-from tai_contract.channels import ChannelDelivery
-from tai_kit.clients.impl.http import HttpxClient
+from tai42_contract.channels import ChannelDelivery
+from tai42_kit.clients.impl.http import HttpxClient
 
-from tai_channel_telegram import TelegramChannel, telegram_settings
+from tai42_channel_telegram import TelegramChannel, telegram_settings
 
 pytestmark = pytest.mark.integration
 
@@ -55,7 +55,7 @@ async def test_deliver_sends_real_force_reply(real_http, fake_redis):
     _creds()
     delivery = ChannelDelivery(
         interaction_id="smoke-text",
-        question="[tai-channel-telegram smoke] reply not required",
+        question="[tai42-channel-telegram smoke] reply not required",
         answer_format="text",
         callback_url="https://example.org/smoke",
         timeout_at=datetime.now(UTC) + timedelta(seconds=120),
@@ -69,7 +69,7 @@ async def test_deliver_external_sends_url_button(real_http, fake_redis):
     _creds()
     delivery = ChannelDelivery(
         interaction_id="smoke-external",
-        question="[tai-channel-telegram smoke] tap not required",
+        question="[tai42-channel-telegram smoke] tap not required",
         answer_format="external",
         callback_url="https://example.org/smoke",
         timeout_at=datetime.now(UTC) + timedelta(seconds=120),

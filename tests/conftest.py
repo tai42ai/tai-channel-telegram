@@ -1,7 +1,7 @@
 """Bind a stub app before the plugin is imported.
 
-``tai_channel_telegram.register`` registers the channel, the inbound route, and
-the startup hook at import time through the global ``tai_app`` handle; binding
+``tai42_channel_telegram.register`` registers the channel, the inbound route, and
+the startup hook at import time through the global ``tai42_app`` handle; binding
 a stub here — at collection time, before any test module imports the plugin —
 satisfies those registrations without standing up the real runtime. Tests
 drive HTTP through ``httpx.MockTransport`` and the correlation store through
@@ -17,10 +17,10 @@ from typing import Any
 import httpx
 import pytest
 from starlette.requests import Request
-from tai_contract.app import tai_app
-from tai_kit.clients.impl.http import HttpxClient
-from tai_kit.clients.impl.redis import RedisClient
-from tai_kit.settings import reset_all_settings
+from tai42_contract.app import tai42_app
+from tai42_kit.clients.impl.http import HttpxClient
+from tai42_kit.clients.impl.redis import RedisClient
+from tai42_kit.settings import reset_all_settings
 
 
 class _ClientCtx:
@@ -113,7 +113,7 @@ class _StubApp:
 
 
 _stub_app = _StubApp()
-tai_app.bind(_stub_app)
+tai42_app.bind(_stub_app)
 
 
 class FakeRedis:

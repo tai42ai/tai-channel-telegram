@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a defect in tai-channel-telegram (the Telegram channel plugin)
+description: Report a defect in tai42-channel-telegram (the Telegram channel plugin)
 labels: ["bug"]
 body:
   - type: textarea
@@ -20,7 +20,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: tai-channel-telegram version
+      label: tai42-channel-telegram version
       placeholder: "0.1.0"
     validations:
       required: true
@@ -28,7 +28,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Python version, the host tai-skeleton version, and the Telegram delivery mode (webhook or polling).
+      description: Python version, the host tai42-skeleton version, and the Telegram delivery mode (webhook or polling).
       placeholder: "Python 3.13.x, macOS 15"
     validations:
       required: true

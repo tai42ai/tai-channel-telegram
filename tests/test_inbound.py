@@ -10,10 +10,10 @@ from typing import Any
 import httpx
 import pytest
 from pydantic import SecretStr
-from tai_kit.settings import reset_all_settings
+from tai42_kit.settings import reset_all_settings
 
-from tai_channel_telegram.inbound import inbound
-from tai_channel_telegram.settings import TelegramSettings
+from tai42_channel_telegram.inbound import inbound
+from tai42_channel_telegram.settings import TelegramSettings
 from tests.conftest import make_inbound_request
 
 _CALLBACK = "https://example.test/api/interactions/callback/tkt"
@@ -45,8 +45,8 @@ def _body(response: Any) -> dict[str, Any]:
 
 
 def test_route_metadata(stub_app):
-    sys.modules.pop("tai_channel_telegram.inbound", None)
-    importlib.import_module("tai_channel_telegram.inbound")
+    sys.modules.pop("tai42_channel_telegram.inbound", None)
+    importlib.import_module("tai42_channel_telegram.inbound")
     routes = [r for r in stub_app.http.routes if r.path == "/api/channels/telegram/inbound"]
     assert routes
     route = routes[-1]

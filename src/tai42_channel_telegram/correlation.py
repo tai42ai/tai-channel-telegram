@@ -9,17 +9,17 @@ Written by ``TelegramChannel.deliver`` after ``sendMessage`` returns (the
 exists), read by the inbound door to route the human's ForceReply answer, and
 expired by Redis at the question's own deadline (TTL = remaining budget). The
 connection comes from :class:`TelegramCorrelationSettings`
-(``CHANNEL_TELEGRAM_REDIS_URL``), pooled through ``tai_app.clients.client_ctx``.
+(``CHANNEL_TELEGRAM_REDIS_URL``), pooled through ``tai42_app.clients.client_ctx``.
 """
 
 from __future__ import annotations
 
 from typing import cast
 
-from tai_contract.app import tai_app
-from tai_kit.clients.impl.redis import RedisClient
+from tai42_contract.app import tai42_app
+from tai42_kit.clients.impl.redis import RedisClient
 
-from tai_channel_telegram.settings import telegram_correlation_settings
+from tai42_channel_telegram.settings import telegram_correlation_settings
 
 _KEY_PREFIX = "channel:telegram:corr:"
 
@@ -29,7 +29,7 @@ def _key(message_id: int) -> str:
 
 
 def _redis_ctx():
-    return tai_app.clients.client_ctx(RedisClient, telegram_correlation_settings())
+    return tai42_app.clients.client_ctx(RedisClient, telegram_correlation_settings())
 
 
 async def store_correlation(message_id: int, callback_url: str, ttl_seconds: int) -> None:

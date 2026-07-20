@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tai_channel_telegram.correlation import clear_correlation, lookup_callback_url, store_correlation
+from tai42_channel_telegram.correlation import clear_correlation, lookup_callback_url, store_correlation
 
 _CALLBACK = "https://example.test/api/interactions/callback/tkt"
 

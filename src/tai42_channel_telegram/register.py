@@ -1,11 +1,11 @@
 """Self-register the Telegram channel, its inbound route, and the setWebhook hook.
 
-Loaded when the manifest's ``channel_modules`` lists ``tai_channel_telegram``:
+Loaded when the manifest's ``channel_modules`` lists ``tai42_channel_telegram``:
 the runtime imports every module under the package, and importing this one
 
 * registers :class:`TelegramChannel` under the name ``"telegram"`` on the app
   handle's ``channels`` facet (a duplicate name raises loudly),
-* imports :mod:`tai_channel_telegram.inbound`, whose import registers the
+* imports :mod:`tai42_channel_telegram.inbound`, whose import registers the
   public ``POST /api/channels/telegram/inbound`` route, and
 * hooks ``setWebhook`` at startup so Telegram points its webhook (with the
   shared ``secret_token``) at this deployment's inbound door.
@@ -15,17 +15,17 @@ Importing the package ``__init__`` alone does NOT register (library use).
 
 from __future__ import annotations
 
-from tai_contract.app import tai_app
+from tai42_contract.app import tai42_app
 
-import tai_channel_telegram.inbound  # noqa: F401  (import registers the inbound route)
-from tai_channel_telegram.channel import TelegramChannel
-from tai_channel_telegram.client import telegram_http
-from tai_channel_telegram.settings import require, require_secret, telegram_settings
+import tai42_channel_telegram.inbound  # noqa: F401  (import registers the inbound route)
+from tai42_channel_telegram.channel import TelegramChannel
+from tai42_channel_telegram.client import telegram_http
+from tai42_channel_telegram.settings import require, require_secret, telegram_settings
 
-tai_app.channels.register("telegram", TelegramChannel())
+tai42_app.channels.register("telegram", TelegramChannel())
 
 
-@tai_app.lifecycle.on_startup
+@tai42_app.lifecycle.on_startup
 async def _register_telegram_webhook() -> None:
     """Point the bot's webhook at this deployment's inbound door.
 

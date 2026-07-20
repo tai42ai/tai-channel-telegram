@@ -7,11 +7,11 @@ import tomllib
 from pathlib import Path
 
 import yaml
-from tai_contract.plugins import PluginSpec
+from tai42_contract.plugins import PluginSpec
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _ROOT_SPEC = _REPO_ROOT / "tai-plugin.yml"
-_PACKAGED_SPEC = _REPO_ROOT / "src" / "tai_channel_telegram" / "tai-plugin.yml"
+_PACKAGED_SPEC = _REPO_ROOT / "src" / "tai42_channel_telegram" / "tai-plugin.yml"
 
 
 def _spec() -> PluginSpec:
@@ -39,7 +39,7 @@ def test_pyproject_ships_the_spec_as_package_data():
     pyproject = tomllib.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     package_data = pyproject["tool"]["setuptools"]["package-data"]
     owning = [key for key, files in package_data.items() if "tai-plugin.yml" in files]
-    assert owning == ["tai_channel_telegram"], (
+    assert owning == ["tai42_channel_telegram"], (
         "exactly one package-data entry must ship tai-plugin.yml; the wheel omits the spec otherwise"
     )
 

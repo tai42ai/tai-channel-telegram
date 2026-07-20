@@ -25,11 +25,11 @@ import logging
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from tai_contract.app import tai_app
+from tai42_contract.app import tai42_app
 
-from tai_channel_telegram.client import telegram_http
-from tai_channel_telegram.correlation import clear_correlation, lookup_callback_url
-from tai_channel_telegram.settings import telegram_settings
+from tai42_channel_telegram.client import telegram_http
+from tai42_channel_telegram.correlation import clear_correlation, lookup_callback_url
+from tai42_channel_telegram.settings import telegram_settings
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def _ignored(reason: str) -> JSONResponse:
     return JSONResponse({"data": {"status": "ignored"}}, status_code=200)
 
 
-@tai_app.http.custom_route(
+@tai42_app.http.custom_route(
     "/api/channels/telegram/inbound",
     methods=["POST"],
     summary="Telegram channel inbound webhook",

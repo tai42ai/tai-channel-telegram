@@ -11,9 +11,9 @@ import sys
 
 import httpx
 import pytest
-from tai_kit.settings import reset_all_settings
+from tai42_kit.settings import reset_all_settings
 
-from tai_channel_telegram import TelegramChannel
+from tai42_channel_telegram import TelegramChannel
 
 _TOKEN = "123456:test-token"
 
@@ -23,9 +23,9 @@ def _import_register_module(stub_app):
     stub_app.channels.registered.clear()
     stub_app.http.routes.clear()
     stub_app.lifecycle.startup_hooks.clear()
-    sys.modules.pop("tai_channel_telegram.register", None)
-    sys.modules.pop("tai_channel_telegram.inbound", None)
-    importlib.import_module("tai_channel_telegram.register")
+    sys.modules.pop("tai42_channel_telegram.register", None)
+    sys.modules.pop("tai42_channel_telegram.inbound", None)
+    importlib.import_module("tai42_channel_telegram.register")
 
 
 def test_import_registers_channel_route_and_hook(stub_app):
@@ -50,17 +50,17 @@ def test_reimport_fires_registration_again(stub_app):
 
 def test_duplicate_registration_raises(stub_app):
     _import_register_module(stub_app)
-    sys.modules.pop("tai_channel_telegram.register", None)
+    sys.modules.pop("tai42_channel_telegram.register", None)
     with pytest.raises(ValueError, match="'telegram' is already registered"):
-        importlib.import_module("tai_channel_telegram.register")
+        importlib.import_module("tai42_channel_telegram.register")
 
 
 def test_package_import_alone_does_not_register():
-    # `import tai_channel_telegram` (library use) must not touch the app handle;
+    # `import tai42_channel_telegram` (library use) must not touch the app handle;
     # only the register module carries the side-effect. Checked in a clean
     # subprocess (no stub app bound, no CHANNEL_TELEGRAM_* env) so the
     # in-process module cache cannot mask it.
-    code = "import sys; import tai_channel_telegram; assert 'tai_channel_telegram.register' not in sys.modules"
+    code = "import sys; import tai42_channel_telegram; assert 'tai42_channel_telegram.register' not in sys.modules"
     env = {k: v for k, v in os.environ.items() if not k.startswith("CHANNEL_TELEGRAM_")}
     subprocess.run([sys.executable, "-c", code], check=True, env=env)
 

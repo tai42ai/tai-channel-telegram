@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 from pydantic import SecretStr, ValidationError
-from tai_kit.settings import reset_all_settings
+from tai42_kit.settings import reset_all_settings
 
-from tai_channel_telegram.settings import (
+from tai42_channel_telegram.settings import (
     TelegramSettings,
     require,
     require_secret,

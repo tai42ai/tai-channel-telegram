@@ -8,10 +8,10 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
-from tai_contract.channels import ChannelDelivery, ChannelDeliveryError, ChannelNotification
-from tai_kit.settings import reset_all_settings
+from tai42_contract.channels import ChannelDelivery, ChannelDeliveryError, ChannelNotification
+from tai42_kit.settings import reset_all_settings
 
-from tai_channel_telegram.channel import TelegramChannel
+from tai42_channel_telegram.channel import TelegramChannel
 
 _CALLBACK = "https://example.test/api/interactions/callback/tkt"
 _TOKEN = "123456:test-token"

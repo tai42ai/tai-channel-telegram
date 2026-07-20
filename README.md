@@ -1,4 +1,4 @@
-# tai-channel-telegram
+# tai42-channel-telegram
 
 [![CI](https://github.com/tai42ai/tai-channel-telegram/actions/workflows/ci.yml/badge.svg)](https://github.com/tai42ai/tai-channel-telegram/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -29,39 +29,39 @@ platform-level story:
 - Build a channel plugin (author guide): https://tai42.ai/guides/authors/channel
 - Ecosystem catalog: https://tai42.ai/reference/catalog
 
-Its only tai-* dependencies are `tai-contract` (the `Channel` protocol,
-`ChannelDelivery`, `ChannelDeliveryError`, and the `tai_app` handle) and
-`tai-kit[redis]` (`HttpxClient`, `RedisClient`, `TaiBaseSettings`, and the
+Its only tai-* dependencies are `tai42-contract` (the `Channel` protocol,
+`ChannelDelivery`, `ChannelDeliveryError`, and the `tai42_app` handle) and
+`tai42-kit[redis]` (`HttpxClient`, `RedisClient`, `TaiBaseSettings`, and the
 settings cache). Beyond those it depends on `httpx`, `starlette`, and
 `pydantic` / `pydantic-settings`.
 
 ## Install
 
 Requires **Python 3.13+**. Nothing is on PyPI yet, so install from source — clone
-this repo alongside your `tai-skeleton` checkout and add it as an editable
+this repo alongside your `tai42-skeleton` checkout and add it as an editable
 dependency of the environment that runs the server:
 
 ```bash
 git clone https://github.com/tai42ai/tai-channel-telegram
 cd tai-skeleton   # or your own app checkout
-uv add --editable ../tai-channel-telegram   # once published: uv add tai-channel-telegram
+uv add --editable ../tai-channel-telegram   # once published: uv add tai42-channel-telegram
 ```
 
 ## Discovery
 
 The skeleton discovers this channel by **importing its modules** — the
 manifest's `channel_modules` loader imports every module under the package, and
-importing `tai_channel_telegram.register` fires the registrations as a
-side-effect: the `"telegram"` channel name on `tai_app.channels`, the public
+importing `tai42_channel_telegram.register` fires the registrations as a
+side-effect: the `"telegram"` channel name on `tai42_app.channels`, the public
 inbound route, and the `setWebhook` startup hook. Name the package in your
 manifest:
 
 ```yaml
 channel_modules:
-  - tai_channel_telegram
+  - tai42_channel_telegram
 ```
 
-A bare `import tai_channel_telegram` (library use) does NOT register anything.
+A bare `import tai42_channel_telegram` (library use) does NOT register anything.
 
 ## Configuration
 

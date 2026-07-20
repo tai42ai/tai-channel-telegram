@@ -3,7 +3,7 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tai-channel-telegram"
+name = "tai42-channel-telegram"
 version = "0.1.0"
 description = "Telegram channel plugin for the TAI ecosystem — delivers ask_user questions to a Telegram chat and bridges the typed reply back to the interactions callback door."
 readme = "README.md"
@@ -24,11 +24,11 @@ classifiers = [
 ]
 dependencies = [
     # The pure interface contract — Channel, ChannelDelivery, ChannelDeliveryError,
-    # and the tai_app handle the plugin registers through.
-    "tai-contract>=0.1,<0.2",
+    # and the tai42_app handle the plugin registers through.
+    "tai42-contract>=0.1,<0.2",
     # HttpxClient + RedisClient (redis extra) + TaiBaseSettings + the settings
     # cache registry + RedisConnectionSettings.
-    "tai-kit[redis]>=0.1,<0.2",
+    "tai42-kit[redis]>=0.1,<0.2",
     # The whole transport: Bot API calls, the callback forward, and the error
     # types the channel classifies. No Telegram SDK — the Bot API is flat
     # JSON-over-HTTPS and there is no official Python SDK.
@@ -64,10 +64,10 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["tai_channel_telegram*"]
+include = ["tai42_channel_telegram*"]
 
 [tool.setuptools.package-data]
-tai_channel_telegram = ["py.typed", "tai-plugin.yml"]
+tai42_channel_telegram = ["py.typed", "tai-plugin.yml"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -83,7 +83,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["tai_channel_telegram"]
+source = ["tai42_channel_telegram"]
 
 [tool.coverage.report]
 fail_under = 97
@@ -91,6 +91,13 @@ fail_under = 97
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }]
 
+
+# The version floors in [project] are the compatibility contract; these path
+# sources resolve the sibling checkouts while the packages are unpublished.
+# They are not part of wheel metadata.
+[tool.uv.sources]
+tai42-contract = { path = "../tai-contract", editable = true }
+tai42-kit = { path = "../tai-kit", editable = true }
 [tool.ruff]
 src = ["src"]
 target-version = "py313"
@@ -100,7 +107,7 @@ line-length = 120
 select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "PIE", "PT", "RUF", "TID"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"tai_skeleton".msg = "A channel plugin sits below the skeleton: it never imports tai-skeleton. It reaches the interactions store only through the public callback door."
+"tai42_skeleton".msg = "A channel plugin sits below the skeleton: it never imports tai42-skeleton. It reaches the interactions store only through the public callback door."
 
 [tool.pyright]
 include = ["src", "tests"]

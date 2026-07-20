@@ -1,18 +1,18 @@
 name: Feature request
-description: Propose an addition or change to tai-channel-telegram
+description: Propose an addition or change to tai42-channel-telegram
 labels: ["enhancement"]
 body:
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: What should be added or changed, and what problem does it solve? Remember the plugin rule — tai-channel-telegram depends on tai-contract + tai-kit only and never imports the skeleton.
+      description: What should be added or changed, and what problem does it solve? Remember the plugin rule — tai42-channel-telegram depends on tai42-contract + tai42-kit only and never imports the skeleton.
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: tai-channel-telegram version
+      label: tai42-channel-telegram version
       description: The version you are using, if relevant.
       placeholder: "0.1.0"
     validations:

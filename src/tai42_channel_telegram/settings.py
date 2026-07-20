@@ -22,8 +22,8 @@ from typing import Annotated
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import NoDecode, SettingsConfigDict
-from tai_kit.clients import RedisConnectionSettings
-from tai_kit.settings import TaiBaseSettings, settings_cache
+from tai42_kit.clients import RedisConnectionSettings
+from tai42_kit.settings import TaiBaseSettings, settings_cache
 
 
 class TelegramSettings(TaiBaseSettings):

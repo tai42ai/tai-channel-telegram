@@ -1,9 +1,9 @@
-"""The Telegram :class:`~tai_contract.channels.Channel`.
+"""The Telegram :class:`~tai42_contract.channels.Channel`.
 
 ``deliver`` first validates the operator config — the bot token
 (``CHANNEL_TELEGRAM_BOT_TOKEN``) must be set before any other work — then
 resolves the recipient chat. EVERY failure on the deliver/notify path raises
-:class:`~tai_contract.channels.ChannelDeliveryError`, operator
+:class:`~tai42_contract.channels.ChannelDeliveryError`, operator
 misconfiguration (missing bot token, missing default recipient) included — a
 question that cannot leave is a delivery failure whatever the cause. A
 caller-supplied
@@ -47,11 +47,11 @@ from typing import Any
 
 import httpx
 from pydantic import SecretStr
-from tai_contract.channels import ChannelDelivery, ChannelDeliveryError, ChannelNotification
+from tai42_contract.channels import ChannelDelivery, ChannelDeliveryError, ChannelNotification
 
-from tai_channel_telegram.client import telegram_http
-from tai_channel_telegram.correlation import store_correlation
-from tai_channel_telegram.settings import require, require_secret, telegram_settings
+from tai42_channel_telegram.client import telegram_http
+from tai42_channel_telegram.correlation import store_correlation
+from tai42_channel_telegram.settings import require, require_secret, telegram_settings
 
 # Tier-1 formats are answered at the callback door itself — a confirm answer is
 # recorded as a bool from the tap, an external answer is a structured POST — so
@@ -84,7 +84,7 @@ def _require_delivery[T](value: T | None, env_name: str) -> T:
 
     On the deliver/notify path EVERY failure — operator misconfiguration
     included — is a delivery failure, so the generic :func:`require` check is
-    retyped here as :class:`~tai_contract.channels.ChannelDeliveryError` with
+    retyped here as :class:`~tai42_contract.channels.ChannelDeliveryError` with
     the same message.
     """
     try:
@@ -113,11 +113,11 @@ def _resolve_target(recipient: str | None) -> str:
     The allowlist gates ONLY caller-supplied values; the operator-set default
     is implicitly trusted. A caller-supplied ``recipient`` must be on
     ``CHANNEL_TELEGRAM_ALLOWED_RECIPIENTS`` or a
-    :class:`~tai_contract.channels.ChannelDeliveryError` refuses the send —
+    :class:`~tai42_contract.channels.ChannelDeliveryError` refuses the send —
     nothing goes out. ``None`` means the operator-configured
     ``CHANNEL_TELEGRAM_DEFAULT_RECIPIENT``, which must be set — a missing
     default is a delivery failure and raises
-    :class:`~tai_contract.channels.ChannelDeliveryError` naming the env var.
+    :class:`~tai42_contract.channels.ChannelDeliveryError` naming the env var.
     """
     settings = telegram_settings()
     if recipient is None:
@@ -135,7 +135,7 @@ async def _send_message(token: str, payload: dict[str, Any], context: str) -> di
     ``token`` is the bot credential, validated by the caller before any work
     happens. Returns the decoded ``ok: true`` body. A transport error, a
     non-200 status, a non-JSON body, or an ``ok: false`` result each raises
-    :class:`~tai_contract.channels.ChannelDeliveryError` naming ``context``
+    :class:`~tai42_contract.channels.ChannelDeliveryError` naming ``context``
     (e.g. ``"interaction <id>"`` or ``"notification"``). The request URL
     embeds the bot token and never appears in error text.
     """
@@ -162,7 +162,7 @@ async def _send_message(token: str, payload: dict[str, Any], context: str) -> di
 
 
 class TelegramChannel:
-    """Satisfies the :class:`~tai_contract.channels.Channel` protocol.
+    """Satisfies the :class:`~tai42_contract.channels.Channel` protocol.
 
     Stateless — configuration is read from the cached settings at each send
     so a live-reload picks up rotated credentials immediately (no
@@ -217,7 +217,7 @@ class TelegramChannel:
         The recipient resolves through the same allowlist gate as ``deliver``.
         The payload carries only ``chat_id`` and ``text``: no reply markup, no
         deadline, no correlation state — nothing travels back. Any failure
-        raises :class:`~tai_contract.channels.ChannelDeliveryError`; a plain
+        raises :class:`~tai42_contract.channels.ChannelDeliveryError`; a plain
         return means the Bot API accepted the message.
         """
         token = _require_delivery_secret(telegram_settings().bot_token, "CHANNEL_TELEGRAM_BOT_TOKEN")
