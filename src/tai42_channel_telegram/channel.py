@@ -1,42 +1,23 @@
 """The Telegram :class:`~tai42_contract.channels.Channel`.
 
-``deliver`` first validates the operator config — the bot token
-(``CHANNEL_TELEGRAM_BOT_TOKEN``) must be set before any other work — then
-resolves the recipient chat. EVERY failure on the deliver/notify path raises
-:class:`~tai42_contract.channels.ChannelDeliveryError`, operator
-misconfiguration (missing bot token, missing default recipient) included — a
-question that cannot leave is a delivery failure whatever the cause. A
-caller-supplied
-``delivery.recipient`` must be on the operator allowlist
-(``CHANNEL_TELEGRAM_ALLOWED_RECIPIENTS``) or the delivery is refused — fail
-closed, nothing is sent; no caller recipient means the operator-configured
-``CHANNEL_TELEGRAM_DEFAULT_RECIPIENT``. The question then goes to that chat as
-ONE ``sendMessage`` call — the Bot API has no idempotency key, so a blind
-retry could duplicate
-the question; a failed send raises instead (single-attempt policy). For a
-typed-reply format (``text``/``select``) the message carries
-``reply_markup: {force_reply: true}``,
-so the human's next message arrives with ``reply_to_message`` pointing at the
-question — the purpose-built Bot API correlation primitive. The sent message's
-``message_id -> callback_url`` mapping is stored before ``deliver`` returns,
-so by the time the helper unblocks the inbound door can route the answer. (A
-reply landing in the sub-second window between Telegram's send ack and the
-correlation write finds no mapping and is acked-and-ignored with a logged
-reason — see the inbound door.)
+``deliver`` validates the bot token (``CHANNEL_TELEGRAM_BOT_TOKEN``) first, then
+resolves the recipient chat: a caller-supplied ``delivery.recipient`` must be on
+``CHANNEL_TELEGRAM_ALLOWED_RECIPIENTS`` (fail closed) else the operator-set
+``CHANNEL_TELEGRAM_DEFAULT_RECIPIENT``. EVERY failure on the deliver/notify path
+raises :class:`~tai42_contract.channels.ChannelDeliveryError`, operator
+misconfiguration included. The question goes as ONE ``sendMessage`` (the Bot API
+has no idempotency key, so a failed send raises rather than risk a duplicate).
 
-A ``confirm`` or ``external`` question is delivered with a tappable URL
-button opening the callback door instead (no correlation state, no inbound
-involvement): the door records a confirm answer as a bool from the tap and
-an external answer as a structured POST — neither is a value a human can
-type into a chat, so a typed reply could never validate.
+Tier-2 (``text``/``select``) carries ``reply_markup: {force_reply: true}`` so the
+reply arrives with ``reply_to_message``; the ``message_id -> callback_url``
+mapping is stored before ``deliver`` returns so the inbound door can route the
+answer. Tier-1 (``confirm``/``external``) carries a tappable URL button to the
+callback door instead — no correlation, no inbound involvement.
 
-``notify`` is the fire-and-forget sibling: the same token check and recipient
-resolution, then ONE plain ``sendMessage`` carrying only ``chat_id`` and
-``text`` — no
-reply markup, no deadline, no correlation state; nothing travels back.
+``notify`` is fire-and-forget: same token check and recipient resolution, then
+ONE plain ``sendMessage`` (``chat_id`` + ``text`` only).
 
-Error text never includes the request URL — the bot token is embedded in every
-Bot API URL and must stay out of logs and exception messages.
+Error text never includes the request URL — the bot token is embedded in it.
 """
 
 from __future__ import annotations
@@ -53,21 +34,14 @@ from tai42_channel_telegram.client import telegram_http
 from tai42_channel_telegram.correlation import store_correlation
 from tai42_channel_telegram.settings import require, require_secret, telegram_settings
 
-# Tier-1 formats are answered at the callback door itself — a confirm answer is
-# recorded as a bool from the tap, an external answer is a structured POST — so
-# the question ships a tappable url button and no chat reply is expected.
-# text/select are Tier-2: ForceReply + correlation, answered by typing.
+# Tier-1 (confirm/external) is answered at the callback door via a tappable URL
+# button; text/select are Tier-2 (ForceReply + correlation, answered by typing).
 _TIER1_FORMATS = frozenset({"confirm", "external"})
 
 
 def _question_text(delivery: ChannelDelivery) -> str:
-    """Render the question for a plain-text chat, format-aware.
-
-    A select question lists its options as guided text (validation stays
-    server-side at the callback door); a Tier-1 question (confirm/external)
-    is just the question — the url button below it is the answer path. The
-    deadline is surfaced so the human knows the ask expires.
-    """
+    """Render the question for a plain-text chat, format-aware: a select question
+    lists its options as guided text; the deadline is surfaced."""
     lines = [delivery.question]
     if delivery.answer_format == "select" and delivery.options:
         lines.append("")
@@ -79,14 +53,8 @@ def _question_text(delivery: ChannelDelivery) -> str:
 
 
 def _require_delivery[T](value: T | None, env_name: str) -> T:
-    """Return the configured value, or raise :class:`ChannelDeliveryError`
-    naming the missing env var.
-
-    On the deliver/notify path EVERY failure — operator misconfiguration
-    included — is a delivery failure, so the generic :func:`require` check is
-    retyped here as :class:`~tai42_contract.channels.ChannelDeliveryError` with
-    the same message.
-    """
+    """The configured value, or raise :class:`ChannelDeliveryError` naming the
+    missing env var (retyping :func:`require` for the deliver/notify path)."""
     try:
         return require(value, env_name)
     except ValueError as exc:
@@ -94,13 +62,9 @@ def _require_delivery[T](value: T | None, env_name: str) -> T:
 
 
 def _require_delivery_secret(value: SecretStr | None, env_name: str) -> str:
-    """Return the secret's plaintext, or raise :class:`ChannelDeliveryError`
-    on unset/EMPTY — fail CLOSED.
-
-    The deliver/notify retyping of :func:`require_secret`: same checks, same
-    message (which names the env var and never the secret), delivery error
-    type.
-    """
+    """The secret's plaintext, or raise :class:`ChannelDeliveryError` on
+    unset/EMPTY (fail CLOSED; retyping :func:`require_secret`, message names only
+    the env var)."""
     try:
         return require_secret(value, env_name)
     except ValueError as exc:
@@ -110,14 +74,10 @@ def _require_delivery_secret(value: SecretStr | None, env_name: str) -> str:
 def _resolve_target(recipient: str | None) -> str:
     """Resolve the target chat id, fail closed against the operator allowlist.
 
-    The allowlist gates ONLY caller-supplied values; the operator-set default
-    is implicitly trusted. A caller-supplied ``recipient`` must be on
-    ``CHANNEL_TELEGRAM_ALLOWED_RECIPIENTS`` or a
-    :class:`~tai42_contract.channels.ChannelDeliveryError` refuses the send —
-    nothing goes out. ``None`` means the operator-configured
-    ``CHANNEL_TELEGRAM_DEFAULT_RECIPIENT``, which must be set — a missing
-    default is a delivery failure and raises
-    :class:`~tai42_contract.channels.ChannelDeliveryError` naming the env var.
+    A caller-supplied ``recipient`` must be on
+    ``CHANNEL_TELEGRAM_ALLOWED_RECIPIENTS`` or the send is refused; ``None`` uses
+    ``CHANNEL_TELEGRAM_DEFAULT_RECIPIENT`` (must be set). The allowlist gates only
+    caller-supplied values.
     """
     settings = telegram_settings()
     if recipient is None:
@@ -132,12 +92,10 @@ def _resolve_target(recipient: str | None) -> str:
 async def _send_message(token: str, payload: dict[str, Any], context: str) -> dict[str, Any]:
     """POST ``payload`` as one Bot API ``sendMessage`` and validate the response.
 
-    ``token`` is the bot credential, validated by the caller before any work
-    happens. Returns the decoded ``ok: true`` body. A transport error, a
-    non-200 status, a non-JSON body, or an ``ok: false`` result each raises
-    :class:`~tai42_contract.channels.ChannelDeliveryError` naming ``context``
-    (e.g. ``"interaction <id>"`` or ``"notification"``). The request URL
-    embeds the bot token and never appears in error text.
+    Returns the decoded ``ok: true`` body. A transport error, non-200 status,
+    non-JSON body, or ``ok: false`` each raises
+    :class:`~tai42_contract.channels.ChannelDeliveryError` naming ``context``.
+    The request URL embeds the bot token and never appears in error text.
     """
     try:
         async with telegram_http() as client:
@@ -164,9 +122,8 @@ async def _send_message(token: str, payload: dict[str, Any], context: str) -> di
 class TelegramChannel:
     """Satisfies the :class:`~tai42_contract.channels.Channel` protocol.
 
-    Stateless — configuration is read from the cached settings at each send
-    so a live-reload picks up rotated credentials immediately (no
-    per-instance snapshot to go stale).
+    Stateless — settings are read at each send so a live-reload picks up rotated
+    credentials with no stale per-instance snapshot.
     """
 
     async def deliver(self, delivery: ChannelDelivery) -> None:
@@ -198,10 +155,9 @@ class TelegramChannel:
                 f"carried no result.message_id"
             )
 
-        # Remaining budget measured AFTER the send returned, so the Redis key
-        # expires at the question's deadline rather than the deadline plus the
-        # send duration. A budget spent mid-send makes ``store_correlation``
-        # reject the non-positive TTL, surfaced through the wrap below.
+        # Budget measured AFTER the send so the key expires at the deadline, not
+        # deadline + send duration. A budget spent mid-send makes store_correlation
+        # reject the non-positive TTL.
         ttl_seconds = math.ceil((delivery.timeout_at - datetime.now(UTC)).total_seconds())
         try:
             await store_correlation(message_id, delivery.callback_url, ttl_seconds)
@@ -212,13 +168,12 @@ class TelegramChannel:
             ) from exc
 
     async def notify(self, notification: ChannelNotification) -> None:
-        """Send ``notification.message`` as ONE plain ``sendMessage`` — fire-and-forget.
+        """Send ``notification.message`` as ONE plain ``sendMessage`` (fire-and-forget).
 
-        The recipient resolves through the same allowlist gate as ``deliver``.
-        The payload carries only ``chat_id`` and ``text``: no reply markup, no
-        deadline, no correlation state — nothing travels back. Any failure
-        raises :class:`~tai42_contract.channels.ChannelDeliveryError`; a plain
-        return means the Bot API accepted the message.
+        Same allowlist gate as ``deliver``; the payload carries only ``chat_id``
+        and ``text``. Any failure raises
+        :class:`~tai42_contract.channels.ChannelDeliveryError`; a plain return
+        means the Bot API accepted the message.
         """
         token = _require_delivery_secret(telegram_settings().bot_token, "CHANNEL_TELEGRAM_BOT_TOKEN")
         target = _resolve_target(notification.recipient)

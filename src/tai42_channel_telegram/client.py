@@ -1,10 +1,9 @@
 """Outbound HTTP for the Telegram channel.
 
-One pooled ``httpx.AsyncClient`` (the kit's ``HttpxClient``, reached through
-``tai42_app.clients.client_ctx``) serves every outbound call this plugin makes:
-``sendMessage`` / ``setWebhook`` against the Bot API and the loopback forward
-of an answer to the interaction callback door. The pool is keyed per event
-loop + timeout, and ``trust_env=False`` ignores ambient proxy env vars.
+One pooled ``httpx.AsyncClient`` (the kit's ``HttpxClient`` via
+``tai42_app.clients.client_ctx``) serves every outbound call: ``sendMessage`` /
+``setWebhook`` and the loopback answer forward. Pooled per event loop + timeout;
+``trust_env=False`` ignores ambient proxy env vars.
 """
 
 from __future__ import annotations

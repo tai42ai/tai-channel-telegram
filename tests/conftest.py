@@ -1,11 +1,9 @@
 """Bind a stub app before the plugin is imported.
 
-``tai42_channel_telegram.register`` registers the channel, the inbound route, and
-the startup hook at import time through the global ``tai42_app`` handle; binding
-a stub here — at collection time, before any test module imports the plugin —
-satisfies those registrations without standing up the real runtime. Tests
-drive HTTP through ``httpx.MockTransport`` and the correlation store through
-``FakeRedis``.
+``register`` registers the channel, inbound route, and startup hook on
+``tai42_app`` at import time; a stub bound here (at collection, before any test
+imports the plugin) satisfies those. Tests drive HTTP through
+``httpx.MockTransport`` and the correlation store through ``FakeRedis``.
 """
 
 from __future__ import annotations

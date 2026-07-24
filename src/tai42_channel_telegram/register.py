@@ -1,16 +1,10 @@
 """Self-register the Telegram channel, its inbound route, and the setWebhook hook.
 
-Loaded when the manifest's ``channel_modules`` lists ``tai42_channel_telegram``:
-the runtime imports every module under the package, and importing this one
-
-* registers :class:`TelegramChannel` under the name ``"telegram"`` on the app
-  handle's ``channels`` facet (a duplicate name raises loudly),
-* imports :mod:`tai42_channel_telegram.inbound`, whose import registers the
-  public ``POST /api/channels/telegram/inbound`` route, and
-* hooks ``setWebhook`` at startup so Telegram points its webhook (with the
-  shared ``secret_token``) at this deployment's inbound door.
-
-Importing the package ``__init__`` alone does NOT register (library use).
+Loaded when the manifest's ``channel_modules`` lists ``tai42_channel_telegram``.
+Importing this module registers :class:`TelegramChannel` under ``"telegram"``,
+imports :mod:`tai42_channel_telegram.inbound` (registering the
+``POST /api/channels/telegram/inbound`` route), and hooks ``setWebhook`` at
+startup. Importing the package ``__init__`` alone does NOT register (library use).
 """
 
 from __future__ import annotations
@@ -29,18 +23,15 @@ tai42_app.channels.register("telegram", TelegramChannel())
 async def _register_telegram_webhook() -> None:
     """Point the bot's webhook at this deployment's inbound door.
 
-    Raises loudly on any failure — a channel named in the manifest that cannot
-    receive replies must abort startup, never boot half-deaf. ``setWebhook`` is
-    idempotent on Telegram's side, so re-running at every startup is safe, and
-    it implicitly disables ``getUpdates`` polling for this token (webhook and
-    polling are mutually exclusive by API design).
+    Raises loudly on any failure — a manifest-named channel that cannot receive
+    replies must abort startup. ``setWebhook`` is idempotent, and it disables
+    ``getUpdates`` polling for this token (mutually exclusive by API design).
     """
     settings = telegram_settings()
     token = require_secret(settings.bot_token, "CHANNEL_TELEGRAM_BOT_TOKEN")
     secret = require_secret(settings.webhook_secret, "CHANNEL_TELEGRAM_WEBHOOK_SECRET")
     base = require(settings.public_base_url, "CHANNEL_TELEGRAM_PUBLIC_BASE_URL")
-    # A deployment with no default recipient AND an empty allowlist can never
-    # deliver to anyone — abort startup rather than boot a dead channel.
+    # No default recipient AND an empty allowlist can never deliver — abort startup.
     if settings.default_recipient is None and not settings.allowed_recipients:
         raise ValueError(
             "the telegram channel is not configured: set CHANNEL_TELEGRAM_DEFAULT_RECIPIENT "
@@ -50,8 +41,7 @@ async def _register_telegram_webhook() -> None:
     payload = {
         "url": f"{base.rstrip('/')}/api/channels/telegram/inbound",
         "secret_token": secret,
-        # Only message updates matter (ForceReply answers arrive as messages);
-        # everything else is never delivered rather than ignored on arrival.
+        # Only message updates matter (ForceReply answers arrive as messages).
         "allowed_updates": ["message"],
     }
     async with telegram_http() as client:

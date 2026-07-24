@@ -1,19 +1,14 @@
 """The public inbound door Telegram's webhook POSTs updates to.
 
 ``POST /api/channels/telegram/inbound`` (``authed=False``): verify the
-``X-Telegram-Bot-Api-Secret-Token`` header against the configured webhook
-secret (constant-time over sha256 digests of both sides; FAIL CLOSED on
-missing configuration), extract the
-ForceReply answer (``message.reply_to_message.message_id`` + ``text``), look
-up the question's callback_url in the correlation store, and forward
-``{"answer": <typed text>}`` to the interaction callback door.
+``X-Telegram-Bot-Api-Secret-Token`` header against the configured webhook secret
+(constant-time over sha256 digests; FAIL CLOSED on missing config), extract the
+ForceReply answer (``reply_to_message.message_id`` + ``text``), look up the
+question's callback_url, and forward ``{"answer": <text>}`` to the callback door.
 
-Telegram redelivers an update until it gets a 2xx, so every branch chooses its
-status deliberately: verification failures deny (401/500 — redelivering an
-unauthentic update has no value), out-of-scope and stale updates ack (200 —
-redelivery cannot make them relevant, the reason is logged), and a transient
-forward failure raises (500 — Telegram's redelivery is the visible recovery
-path, never a swallowed answer).
+Telegram redelivers until a 2xx, so each branch picks its status deliberately:
+verification failures deny (401/500), out-of-scope/stale updates ack (200, logged),
+and a transient forward failure raises (500) so redelivery is the recovery path.
 """
 
 from __future__ import annotations
@@ -34,8 +29,7 @@ from tai42_channel_telegram.settings import telegram_settings
 logger = logging.getLogger(__name__)
 
 _SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
-# A Telegram text-message update is a few KiB; an unauthenticated door still
-# bounds what it reads into memory — loud 413, never a truncation.
+# Bound what an unauthenticated door reads into memory — loud 413, never truncation.
 _MAX_BODY_BYTES = 1 * 1024 * 1024
 
 
@@ -44,11 +38,8 @@ class _PayloadTooLarge(Exception):
 
 
 async def _read_bounded_body(request: Request, cap: int) -> bytes:
-    """Read the request body on ACTUAL bytes, never a client ``Content-Length``.
-
-    Raise ``_PayloadTooLarge`` the moment the accumulated stream crosses ``cap``
-    — the oversized remainder is never read into memory; loud, never truncated.
-    """
+    """Read the body on ACTUAL bytes, never a client ``Content-Length``. Raise
+    ``_PayloadTooLarge`` the moment the stream crosses ``cap``."""
     chunks: list[bytes] = []
     total = 0
     async for chunk in request.stream():
@@ -84,24 +75,19 @@ def _ignored(reason: str) -> JSONResponse:
 )
 async def inbound(request: Request) -> Response:
     """Receive a Telegram webhook update and bridge a ForceReply answer to the
-    interaction callback door.
+    callback door.
 
-    Only replies (``reply_to_message``) carrying text, from a configured
-    recipient chat (the default recipient or an allowlisted one, matched by
-    numeric chat id or ``@username``), are answers;
-    everything else is acknowledged and ignored. The answer
-    is forwarded as the JSON object ``{"answer": "<typed text>"}`` — the
-    callback door validates the value against the question's stored
-    answer_format and enforces single-use/idempotency.
+    Only text replies (``reply_to_message``) from a configured recipient chat
+    (default or allowlisted, matched by numeric id or ``@username``) are answers;
+    everything else is acked and ignored. The answer is forwarded as
+    ``{"answer": "<text>"}``; the door validates it and enforces single-use.
     """
     settings = telegram_settings()
     configured = settings.webhook_secret.get_secret_value() if settings.webhook_secret else ""
     if not configured:
         return _misconfigured("CHANNEL_TELEGRAM_WEBHOOK_SECRET")
     # The chats questions can be delivered to — replies from anywhere else are
-    # never answers. An entry matches an inbound reply by either address form:
-    # the string form of the update's numeric chat id, or ``@username`` when
-    # the update's chat carries a username.
+    # never answers, matched by numeric chat id or ``@username``.
     recipient_chats = set(settings.allowed_recipients)
     if settings.default_recipient is not None:
         recipient_chats.add(settings.default_recipient)
@@ -109,9 +95,8 @@ async def inbound(request: Request) -> Response:
         return _misconfigured("CHANNEL_TELEGRAM_DEFAULT_RECIPIENT / CHANNEL_TELEGRAM_ALLOWED_RECIPIENTS")
 
     provided = request.headers.get(_SECRET_HEADER)
-    # Hash BOTH sides before the constant-time compare: compare_digest over
-    # unequal-length raw inputs returns early, so a raw compare would leak the
-    # secret's length. sha256 fixes both sides at 32 bytes.
+    # Hash both sides before the constant-time compare so an unequal-length raw
+    # input can't leak the secret's length; sha256 fixes both at 32 bytes.
     if provided is None or not hmac.compare_digest(
         hashlib.sha256(provided.encode()).digest(),
         hashlib.sha256(configured.encode()).digest(),
@@ -135,9 +120,8 @@ async def inbound(request: Request) -> Response:
     chat = message.get("chat")
     if not isinstance(chat, dict):
         return _ignored("message is not from a configured recipient chat")
-    # A chat is a configured recipient when either of its addresses is listed:
-    # the string form of its numeric id, or "@" + its username (Telegram sets
-    # ``chat.username`` on the update when the chat has one).
+    # A chat is a configured recipient when its numeric id (as a string) or
+    # "@" + its username is listed.
     username = chat.get("username")
     if str(chat.get("id")) not in recipient_chats and not (
         isinstance(username, str) and f"@{username}" in recipient_chats
@@ -157,17 +141,15 @@ async def inbound(request: Request) -> Response:
         return _ignored("no pending question for this reply")
 
     # Forward the typed answer. Transport errors propagate (-> 500) so Telegram
-    # redelivers the update — the retry is the recovery, never a lost answer.
+    # redelivers — the retry is the recovery.
     async with telegram_http() as client:
         forwarded = await client.post(callback_url, json={"answer": text})
 
     if forwarded.status_code == 200:
         await clear_correlation(message_id)
         return JSONResponse({"data": {"status": "forwarded"}}, status_code=200)
-    # 404 is the ONE terminal callback status (the door emits only
-    # 200/400/401/404/413/500): the ticket is gone — expired or unknown — and
-    # retrying the SAME answer can never succeed. (A duplicate forward of an
-    # already-recorded answer resolves idempotently to 200 at the door.)
+    # 404 is the ONE terminal callback status: the ticket is gone and retrying the
+    # same answer can never succeed. (A duplicate forward resolves idempotently to 200.)
     if forwarded.status_code == 404:
         logger.warning(
             "telegram inbound: callback door returned terminal HTTP 404 for message_id=%s; dropping correlation",

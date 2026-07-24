@@ -1,26 +1,12 @@
 """Import-graph guard for the shipped package.
 
-Two complementary walks assert the same rule: every import root reachable from
-``tai42_channel_telegram`` is on the allowlist. The rule (see the README): the shipped
-package imports
-the HTTP surface (httpx + starlette), the shared platform substrate
-(tai42-contract + tai42-kit with the redis extra, pydantic, pydantic-settings)
-and their dependency closure ONLY, plus the Python standard library. Anything
-else -- a package that is not a declared dependency of the shipped wheel -- is
-absent from the allowlist and fails the test loudly.
-
-The runtime walk imports ``tai42_channel_telegram`` and every submodule in a fresh
-subprocess, then inspects ``sys.modules``. Running it in a subprocess that
-imports ONLY ``tai42_channel_telegram`` means the assertion covers the SHIPPED package's
-true import closure and never observes roots that a sibling test module or a
-conftest pulled into this process's global ``sys.modules``. A submodule that
-fails to import raises loudly and fails the test too.
-
-The static walk parses every shipped source file and collects import roots at
-ANY nesting depth. This is what catches an import that the runtime walk cannot
-see: one placed inside a function body, a class body, or a ``TYPE_CHECKING``
-block never executes on a plain package import, so it would leave no trace in
-``sys.modules``. Both walks share one allowlist, so neither is a weaker gate.
+Two walks share one allowlist so every import root reachable from
+``tai42_channel_telegram`` is the HTTP surface, the shared platform substrate,
+their dependency closure, or the stdlib — anything else fails loudly. The runtime
+walk imports the package (and every submodule) in a fresh subprocess and inspects
+``sys.modules``; the static walk parses every source file's full AST, catching an
+import nested in a function/class/``TYPE_CHECKING`` body that the runtime walk
+never executes.
 """
 
 from __future__ import annotations
@@ -34,15 +20,10 @@ from pathlib import Path
 PACKAGE = "tai42_channel_telegram"
 ALLOWED_FIRST_PARTY = frozenset({PACKAGE, "tai42_contract", "tai42_kit"})
 
-# Every third-party root the shipped ``tai42_channel_telegram`` graph pulls in -- the
-# declared runtime dependencies plus their resolved closure. Compiled extension
-# modules appear under the bare top-level name they register (``_cffi_backend`` is
-# the C extension of the ``cffi`` distribution; ``_openssl`` is registered
-# directly into ``sys.modules`` by ``cryptography``'s Rust binding, so it has no
-# importable spec and no distribution mapping of its own), so they are listed
-# alongside their providing distribution. Adding a runtime dependency that brings a new root means adding
-# that root here, but only when it is a genuine dependency of the shipped
-# package -- the walks below are never widened just to make the test pass.
+# Every third-party root the shipped graph pulls in -- declared deps plus their
+# closure. Compiled extensions appear under their registered top-level name
+# (``_cffi_backend`` from ``cffi``; ``_openssl`` from ``cryptography``'s Rust
+# binding). Add a root here only for a genuine dependency, never to pass the test.
 ALLOWED_THIRD_PARTY = frozenset(
     {
         "_cffi_backend",
@@ -68,12 +49,8 @@ ALLOWED_THIRD_PARTY = frozenset(
     }
 )
 
-# Interpreter, compiler, and virtual-env roots that land in ``sys.modules`` as
-# ambient side effects of importing compiled extensions or running under a
-# virtual environment. They are not dependency packages, and their exact names
-# are build/platform/version specific (a mypyc module group is hash-named, the
-# cython runtime carries its version, sysconfigdata carries the platform), so
-# they are matched by shape, never by literal.
+# Interpreter/compiler/venv roots that land in ``sys.modules`` as ambient side
+# effects. Their names are build/platform specific, so they are matched by shape.
 _ARTIFACT_ROOTS = frozenset({"__main__", "__mp_main__", "cython_runtime", "_virtualenv"})
 
 
@@ -90,13 +67,9 @@ def _allowed(root: str) -> bool:
     )
 
 
-# Program run in the subprocess: bind a stub app to the ``tai42_app`` handle (the
-# plugin modules register through ``tai42_app`` at import time, so the handle must
-# be bound first, exactly as the host binds it before importing the plugin),
-# import the package and every submodule, then print each imported root that is
-# NOT on the allowlist. A submodule that fails to import propagates as an
-# uncaught exception, giving a non-zero exit the parent turns into a loud
-# failure.
+# Program run in the subprocess: bind a stub app to ``tai42_app`` (plugins register
+# at import time), import the package and every submodule, print each imported
+# root not on the allowlist. A submodule import failure exits non-zero -> loud fail.
 _CHILD_PROGRAM = f"""
 import importlib
 import pkgutil

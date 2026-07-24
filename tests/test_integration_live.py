@@ -1,10 +1,9 @@
 """Live integration tests against the real Telegram Bot API.
 
-Run with ``pytest -m integration``. Credentials are read purely from the
-``CHANNEL_TELEGRAM_BOT_TOKEN`` / ``CHANNEL_TELEGRAM_DEFAULT_RECIPIENT``
-environment; the
-suite skips cleanly when either is unset. It never calls ``setWebhook`` — a
-live bot may have a production webhook this suite must not repoint.
+Run with ``pytest -m integration``. Reads ``CHANNEL_TELEGRAM_BOT_TOKEN`` /
+``CHANNEL_TELEGRAM_DEFAULT_RECIPIENT`` from the environment and skips cleanly when
+either is unset. Never calls ``setWebhook`` — it must not repoint a live bot's
+production webhook.
 """
 
 from __future__ import annotations
